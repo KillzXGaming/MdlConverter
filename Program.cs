@@ -57,8 +57,30 @@ namespace ModelConverter
                 ExportModel((MDL)importedModel);
             else
             {
+                var importModel = importedModel.ToGeneric();
+                importModel.OrderBones(importModel.Skeleton.Bones.OrderBy(x => GetBoneIndex(x.Name)).ToList());
+                if (args.Length > 1)
+                {
+                    var mdl = (IModelFormat)STFileLoader.OpenFileFormat(args[1]);
+                    importModel.Skeleton = mdl.ToGeneric().Skeleton;
+
+                    //Recalculate the bone indices on the original skeleton
+                    foreach (var mesh in importModel.Meshes)
+                    {
+                        for (int v = 0; v < mesh.Vertices.Count; v++)
+                        {
+                            for (int j = 0; j < mesh.Vertices[v].BoneNames.Count; j++)
+                            {
+                                var boneName = mesh.Vertices[v].BoneNames[j];
+                                var boneIndex = importModel.Skeleton.Bones.FindIndex(x => x.Name == boneName);
+                                mesh.Vertices[v].BoneIndices[j] = boneIndex;
+                            }
+                        }
+                    }
+                }
+
                 STGenericScene scene = new STGenericScene();
-                scene.Models.Add(importedModel.ToGeneric());
+                scene.Models.Add(importModel);
 
                 var model = new MDL();
                 model.FileInfo = new File_Info();
@@ -68,8 +90,8 @@ namespace ModelConverter
                 for (int i = 0; i < newmaterials.Length; i++)
                 {
                     if (File.Exists($"{folder}\\Material{i}.json")) {
-                         string json = File.ReadAllText($"{folder}\\Material{i}.json");
-                         model.ReplaceMaterial(json, i);
+                        string json = File.ReadAllText($"{folder}\\Material{i}.json");
+                        model.ReplaceMaterial(json, i);
                     }
                 }
 
@@ -78,6 +100,14 @@ namespace ModelConverter
                 Console.WriteLine("Saving file..");
                 STFileSaver.SaveFileFormat(model, $"{name}.new.mdl");
             }
+        }
+
+        static int GetBoneIndex(string name)
+        {
+            int index = 0;
+            string value = name.Replace("Bone", string.Empty).Replace("Mesh", string.Empty);
+            int.TryParse(value, out index);
+            return index;
         }
 
         static void ExportModel(MDL model)
