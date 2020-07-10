@@ -1,0 +1,16 @@
+﻿{
+  "MeshSettings": {
+    "NormalsFlags": 1,
+    "Unknown1": 0,
+    "Unknown2": 38,
+    "Unknown3": 1
+  },
+  "DiffuseR": 255,
+  "DiffuseG": 255,
+  "DiffuseB": 255,
+  "DiffuseA": 255,
+  "AlphaFlags": 0,
+  "Unknown1": 0,
+  "Unknown2": 0,
+  "TevStages": []
+}

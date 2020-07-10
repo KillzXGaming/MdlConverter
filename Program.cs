@@ -33,6 +33,8 @@ namespace ModelConverter
             string folder = "";
             string target = "";
 
+            string appFolder = AppDomain.CurrentDomain.BaseDirectory;
+
             //Input is a folder
             if (Directory.Exists(args[0]))
             {
@@ -67,10 +69,8 @@ namespace ModelConverter
                     //Recalculate the bone indices on the original skeleton
                     foreach (var mesh in importModel.Meshes)
                     {
-                        for (int v = 0; v < mesh.Vertices.Count; v++)
-                        {
-                            for (int j = 0; j < mesh.Vertices[v].BoneNames.Count; j++)
-                            {
+                        for (int v = 0; v < mesh.Vertices.Count; v++) {
+                            for (int j = 0; j < mesh.Vertices[v].BoneNames.Count; j++) {
                                 var boneName = mesh.Vertices[v].BoneNames[j];
                                 var boneIndex = importModel.Skeleton.Bones.FindIndex(x => x.Name == boneName);
                                 mesh.Vertices[v].BoneIndices[j] = boneIndex;
@@ -86,12 +86,19 @@ namespace ModelConverter
                 model.FileInfo = new File_Info();
                 model.FromGeneric(scene);
 
-                var newmaterials = model.Header.Materials;
-                for (int i = 0; i < newmaterials.Length; i++)
+                var drawElements = model.Header.DrawElements;
+                for (int i = 0; i < importModel.Meshes.Count; i++)
                 {
-                    if (File.Exists($"{folder}\\Material{i}.json")) {
-                        string json = File.ReadAllText($"{folder}\\Material{i}.json");
-                        model.ReplaceMaterial(json, i);
+                    //Check both the default and the imported mesh names. and inject data to these slots
+                    if (File.Exists($"{folder}\\{importModel.Meshes[i].Name}.json"))
+                    {
+                        string json = File.ReadAllText($"{folder}\\Mesh{i}.json");
+                        model.ReplaceMaterial(json, model.Header.DrawElements[i]);
+                    }
+                    else if (File.Exists($"{appFolder}\\Defaults.json"))
+                    {
+                        string json = File.ReadAllText($"{appFolder}\\Defaults.json");
+                        model.ReplaceMaterial(json, model.Header.DrawElements[i]);
                     }
                 }
 
@@ -121,8 +128,11 @@ namespace ModelConverter
                 Directory.CreateDirectory($"{folder}");
 
             var materials = model.Header.Materials;
-            for (int i = 0; i < materials.Length; i++) {
-                File.WriteAllText($"{folder}/Material{i}.json", model.ExportMaterial(i));
+            var drawElements = model.Header.DrawElements;
+            //Export by draw element to export shape flags
+            for (int i = 0; i < drawElements.Length; i++) {
+                File.WriteAllText($"{folder}/Mesh{i}.json",
+                    model.ExportMaterial(drawElements[i]));
             }
 
             var settings = new DAE.ExportSettings();
