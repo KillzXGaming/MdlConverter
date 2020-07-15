@@ -3,7 +3,8 @@
     "NormalsFlags": 1,
     "Unknown1": 0,
     "Unknown2": 38,
-    "Unknown3": 1
+    "Unknown3": 1,
+    "NodeIndex": 0
   },
   "DiffuseR": 255,
   "DiffuseG": 255,

@@ -7,6 +7,7 @@ using Toolbox.Core;
 using Toolbox.Core.Collada;
 using GCNLibrary.LM.MDL;
 using Toolbox.Core.IO;
+using System.Runtime.Remoting.Messaging;
 
 namespace ModelConverter
 {
@@ -23,17 +24,27 @@ namespace ModelConverter
                 Console.WriteLine("Arguments:");
                 Console.WriteLine("");
                 Console.WriteLine("Convert .mdl to .dae/.png/.json formats:");
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("  ModelConverter.exe (target .mdl file)");
+                Console.ForegroundColor = ConsoleColor.White;
                 Console.WriteLine("");
                 Console.WriteLine("Create a new .mdl file:");
-                Console.WriteLine("  ModelConverter.exe (extracted .mdl folder or .dae)");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  ModelConverter.exe (extracted .mdl folder or .dae) (originalFile.mdl)");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine("Optional Arguments:");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("-skel (Uses custom skeleton when creating new mdl)");
+                Console.ForegroundColor = ConsoleColor.White;
                 return;
             }
 
             string folder = "";
             string target = "";
+            string originalMdlTarget = "";
 
             string appFolder = AppDomain.CurrentDomain.BaseDirectory;
+
 
             //Input is a folder
             if (Directory.Exists(args[0]))
@@ -54,6 +65,26 @@ namespace ModelConverter
                 target = args[0];
             }
 
+            if (Utils.GetExtension(target) == ".dae")
+            {
+                if (args.Length > 1)
+                    originalMdlTarget = args[1];
+                else if (File.Exists($"{folder}.mdl"))
+                    originalMdlTarget = $"{folder}.mdl";
+                else if (File.Exists(target.Replace(".dae", ".mdl")))
+                    originalMdlTarget = target.Replace(".dae", ".mdl");
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error! Make sure you input the original .mdl file.");
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("");
+                    Console.WriteLine("  ModelConverter.exe (extracted .mdl folder or .dae) (originalFile.mdl)");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    return;
+                }
+            }
+
             var importedModel = (IModelFormat)STFileLoader.OpenFileFormat(target);
             if (importedModel is MDL)
                 ExportModel((MDL)importedModel);
@@ -61,9 +92,19 @@ namespace ModelConverter
             {
                 var importModel = importedModel.ToGeneric();
                 importModel.OrderBones(importModel.Skeleton.Bones.OrderBy(x => GetBoneIndex(x.Name)).ToList());
-                if (args.Length > 1)
+                //Load any extra texture maps not referenced by the model itself for texture animations
+                foreach (var file in Directory.GetFiles(Path.GetDirectoryName(target)))
                 {
-                    var mdl = (IModelFormat)STFileLoader.OpenFileFormat(args[1]);
+                    if (Utils.GetExtension(file) == ".png") {
+                        string texname = Path.GetFileNameWithoutExtension(file);
+                        if (!importModel.Textures.Any(x => x.Name == texname))
+                            importModel.Textures.Add(new GenericBitmapTexture(file));
+                    }
+                }
+
+                if (originalMdlTarget != string.Empty && !args.Contains("-skel"))
+                {
+                    var mdl = (IModelFormat)STFileLoader.OpenFileFormat(originalMdlTarget);
                     importModel.Skeleton = mdl.ToGeneric().Skeleton;
 
                     //Recalculate the bone indices on the original skeleton
@@ -86,27 +127,82 @@ namespace ModelConverter
                 model.FileInfo = new File_Info();
                 model.FromGeneric(scene);
 
+                //Reset the indices and assign by json file
+                foreach (var node in model.Header.Nodes)
+                {
+                    node.ShapeCount = 0;
+                    node.ShapeIndex = 0;
+                }
+
+                Node[] nodeList = new Node[model.Header.Nodes.Length];
+                for (int i = 0; i < nodeList.Length; i++)
+                    nodeList[i] = new Node();
+
+                if (File.Exists($"{folder}\\SamplerList.json"))
+                {
+                    string json = File.ReadAllText($"{folder}\\SamplerList.json");
+                    model.ReplaceSamplers(json);
+                }
+
                 var drawElements = model.Header.DrawElements;
                 for (int i = 0; i < importModel.Meshes.Count; i++)
                 {
+                    ushort nodeIndex = 0;
+
                     //Check both the default and the imported mesh names. and inject data to these slots
                     if (File.Exists($"{folder}\\{importModel.Meshes[i].Name}.json"))
                     {
-                        string json = File.ReadAllText($"{folder}\\Mesh{i}.json");
-                        model.ReplaceMaterial(json, model.Header.DrawElements[i]);
+                        string json = File.ReadAllText($"{folder}\\{importModel.Meshes[i].Name}.json");
+                        nodeIndex = model.ReplaceMaterial(json, drawElements[i]);
                     }
                     else if (File.Exists($"{appFolder}\\Defaults.json"))
                     {
                         string json = File.ReadAllText($"{appFolder}\\Defaults.json");
-                        model.ReplaceMaterial(json, model.Header.DrawElements[i]);
+                        nodeIndex = model.ReplaceMaterial(json, drawElements[i]);
                     }
+
+                    //Here we add our draw elements to the assigned node they use from the json files
+                    if (nodeIndex < model.Header.Nodes.Length) {
+                        nodeList[nodeIndex].DrawElements.Add(drawElements[i]);
+                    }
+                    else
+                        nodeList[0].DrawElements.Add(drawElements[i]);
                 }
 
-                string name = Path.GetFileName(folder);
+                //Create a new draw list in proper order
+                List<DrawElement> sortedElements = new List<DrawElement>();
+                for (int i = 0; i < nodeList.Length; i++)
+                    sortedElements.AddRange(nodeList[i].DrawElements);
+
+                model.Header.DrawElements = sortedElements.ToArray();
+
+                //Set the referenced draw elements/shapes used for the node lists
+                ushort index = 0;
+                for (int i = 0; i < nodeList.Length; i++) {
+                    model.Header.Nodes[i].ShapeIndex = index;
+                    model.Header.Nodes[i].ShapeCount = (ushort)nodeList[i].DrawElements.Count;
+
+                    index += (ushort)nodeList[i].DrawElements.Count; 
+                }
 
                 Console.WriteLine("Saving file..");
+
+                string name = Path.GetFileName(folder);
                 STFileSaver.SaveFileFormat(model, $"{name}.new.mdl");
+
+                Console.WriteLine($"Saved model " + $"{name}.new.mdl!");
             }
+        }
+
+        class Node
+        {
+            public List<DrawElement> DrawElements = new List<DrawElement>();
+        }
+
+        class Draw
+        {
+            public int Index;
+            public DrawElement element;
         }
 
         static int GetBoneIndex(string name)
@@ -135,9 +231,13 @@ namespace ModelConverter
                     model.ExportMaterial(drawElements[i]));
             }
 
+            File.WriteAllText($"{folder}/SamplerList.json", model.ExportSamplers());
+
             var settings = new DAE.ExportSettings();
             settings.ImageFolder = folder;
             DAE.Export(Path.Combine(folderDir, daePath), settings, model);
+
+            Console.WriteLine($"Exported model {model.FileInfo.FileName}!");
         }
     }
 }
