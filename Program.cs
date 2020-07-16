@@ -120,11 +120,18 @@ namespace ModelConverter
                     }
                 }
 
-                STGenericScene scene = new STGenericScene();
-                scene.Models.Add(importModel);
-
                 var model = new MDL();
                 model.FileInfo = new File_Info();
+                model.Header = new MDL_Parser();
+
+                if (File.Exists($"{folder}\\SamplerList.json"))
+                {
+                    string json = File.ReadAllText($"{folder}\\SamplerList.json");
+                    model.ReplaceSamplers(json);
+                }
+
+                STGenericScene scene = new STGenericScene();
+                scene.Models.Add(importModel);
                 model.FromGeneric(scene);
 
                 //Reset the indices and assign by json file
@@ -138,12 +145,7 @@ namespace ModelConverter
                 for (int i = 0; i < nodeList.Length; i++)
                     nodeList[i] = new Node();
 
-                if (File.Exists($"{folder}\\SamplerList.json"))
-                {
-                    string json = File.ReadAllText($"{folder}\\SamplerList.json");
-                    model.ReplaceSamplers(json);
-                }
-
+   
                 var drawElements = model.Header.DrawElements;
                 for (int i = 0; i < importModel.Meshes.Count; i++)
                 {
