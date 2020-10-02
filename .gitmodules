@@ -1,0 +1,7 @@
+[submodule "GCNLibrary"]
+	path = GCNLibrary
+	url = https://github.com/KillzXGaming/Toolbox.Reborn/tree/master/Plugins/GCNLibrary
+	
+[submodule "Toolbox.Core"]
+	path = Toolbox.Core
+	url = https://github.com/KillzXGaming/Toolbox.Reborn/tree/master/Toolbox.Core
