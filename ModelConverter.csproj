@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>ModelConverter</RootNamespace>
     <AssemblyName>ModelConverter</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
@@ -62,6 +62,9 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="Toolbox.Core">
+      <HintPath>Libraries\Toolbox.Core.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
@@ -74,21 +77,13 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Plugins\GCNLibrary.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
     <Folder Include="Libraries\" />
+    <Folder Include="Plugins\" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GCNLibrary\GCNLibrary.csproj">
-      <Project>{202e5e7a-443b-4bf0-bf1f-1d2b99571d30}</Project>
+    <ProjectReference Include="Plugins\GCNLibrary\GCNLibrary.csproj">
+      <Project>{891af5f1-c48b-45a2-89d3-9886d2544327}</Project>
       <Name>GCNLibrary</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Toolbox.Core\Toolbox.Core.csproj">
-      <Project>{20d55fc6-0840-4e24-9d55-eb95f501bc71}</Project>
-      <Name>Toolbox.Core</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
