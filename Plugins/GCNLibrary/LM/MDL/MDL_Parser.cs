@@ -236,7 +236,7 @@ namespace GCNLibrary.LM.MDL
                     writer.Write(ShapePackets[i].Data);
                 }
 
-                writer.Align(32);
+                writer.Align(32); //Alignment after packets
 
                 //Save texture headers. Offset will save later
                 uint[] textureOffsets = new uint[Textures.Length];
@@ -245,6 +245,7 @@ namespace GCNLibrary.LM.MDL
                     textureOffsets[i] = (uint)writer.Position;
                     Textures[i].Write(writer);
                 }
+                writer.Align(16); //Alignment after image data.
 
                 writer.WriteUint32Offset(104);
                 for (int i = 0; i < Materials.Length; i++)

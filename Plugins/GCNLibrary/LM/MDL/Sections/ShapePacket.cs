@@ -57,14 +57,14 @@ namespace GCNLibrary.LM.MDL
                     for (int v = 0; v < drawList.Vertices.Count; v++)
                     {
                         var vertex = drawList.Vertices[v];
-
+                        //LOD mesh used for shadows
                         if (IsLOD)
                         {
                             writer.Write(vertex.MatrixIndex);
                             writer.Write(vertex.PositionIndex);
                             writer.Write((byte)0);
                         }
-                        else
+                        else //Normal mesh
                         {
                             writer.Write(vertex.MatrixIndex);
                             writer.Write(vertex.Tex0MatrixIndex);
@@ -79,6 +79,7 @@ namespace GCNLibrary.LM.MDL
                         }
                     }
                 }
+                writer.AlignBytes(32);
             }
             return mem.ToArray();
         }
